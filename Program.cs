@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading;
+using System.Diagnostics;
 
 namespace ConsoleApplication
 {
@@ -7,14 +8,24 @@ namespace ConsoleApplication
     {
         public static void Main(string[] args)
         {
-            int maxThreads = Int32.Parse(args[0]);
-            int numIterations = Int32.Parse(args[1]);
-            
-            for(int i = 2; i <= maxThreads; ++i)
+            int minThreads = Int32.Parse(args[0]);
+            int maxThreads = Int32.Parse(args[1]);
+            int numIterations = Int32.Parse(args[2]);
+            Console.WriteLine(Stopwatch.Frequency/1e6);
+            Console.WriteLine(Stopwatch.IsHighResolution);
+
+            RunTest(numIterations, new NaiveAggressiveSpinLock(), minThreads, maxThreads);            
+            RunTest(numIterations, new NaiveTestAndTestSpinLock(), minThreads, maxThreads);            
+        }
+
+        private static void RunTest(int numIterations, INaiveSpinLock naiveLock, int minThreads, int maxThreads)
+        {
+            for(int i = minThreads; i <= maxThreads; ++i)
             {
+                var sw = new Stopwatch();
                 var barrier = new Barrier(i);
                 var threads = new Thread[i];
-                var naiveLock = new NaiveAggressiveSpinLock();
+                sw.Start();
                 for(int j = 0; j < i; ++j)
                 {
                     threads[j] = new Thread(new ThreadStart(GetWorkload(numIterations, naiveLock, barrier)));
@@ -24,6 +35,8 @@ namespace ConsoleApplication
                 {
                     threads[j].Join();
                 }
+                sw.Stop();
+                Console.WriteLine($"{i} --> {sw.ElapsedMilliseconds}");
             }
         }
 
@@ -33,14 +46,18 @@ namespace ConsoleApplication
             {
                 barrier.SignalAndWait();        
                 double x = 100, y = 200;
+                var s = new Stopwatch();
                 for(int i = 0; i < numIterations; ++i)
                 {
-                    naiveLock.Enter();
-                    for(int j = 0; j < 100 + i % 3; ++j)
+                    s.Reset();
+                    s.Start();
+                    naiveLock.Enter();/* 
+                    for(int j = 0; j < 10000 + i % 3; ++j)
                     {
                         x += j / y;
                         y -= i * j;
-                    }
+                    }*/
+                    while(s.ElapsedTicks < 15000) ;
                     naiveLock.Exit();
                 }
                 Console.WriteLine($"Thread {Thread.CurrentThread.ManagedThreadId} computed: {x}, {y}");
