@@ -33,30 +33,43 @@ namespace ConsoleApplication
         private static void RunTest(int numLockAcquires, int numPassesPerAcquire, INaiveSpinLock naiveLock, int minThreads, int maxThreads)
         {
             var a = new int[256];
-            Action fill = () => {
-                for(int i = 0; i < a.Length; ++i)
-                {
-                    a[i] += i;
-                }
-            };
+            Action fill = () => Fill(a);
             Console.WriteLine($"----- Beginning Test Run Lock={naiveLock.GetType()} minThreads={minThreads}, maxThreads={maxThreads}, numLockAcquires={numLockAcquires}, numPassesPerAcqure={numPassesPerAcquire} ------");
-            Console.WriteLine($"NumThreads,TotalMillisecons");
+            Console.WriteLine($"NumThreads,NumAcquires,TotalMillisecons");
             for(int i = minThreads; i <= maxThreads; ++i)
             {
                 var sw = new Stopwatch();
                 var barrier = new Barrier(i + 1);
                 var threads = new Thread[i];
                 var acquireAction = new AcquireAction(numLockAcquires, fill);
+                var p = new int[a.Length];
+                var r = new Random();      
+                Action releaseAction = () => 
+                { 
+                    int numFills = r.Next(1, 10); 
+                    for(int n = 0; n < numFills; ++n)
+                    {
+                        Fill(p);
+                    }
+                };
                 for(int j = 0; j < i; ++j)
                 {
-                    threads[j] = new Thread(new ThreadStart(GetWorkload(naiveLock, barrier, acquireAction)));
+                    threads[j] = new Thread(new ThreadStart(GetWorkload(naiveLock, barrier, acquireAction, releaseAction)));
                     threads[j].Start();
                 }
                 barrier.SignalAndWait();
                 sw.Start();
                 barrier.SignalAndWait();                
                 sw.Stop();
-                Console.WriteLine($"{i},{sw.ElapsedMilliseconds}");
+                Console.WriteLine($"{i},{numLockAcquires},{sw.ElapsedMilliseconds}");
+            }
+        }
+
+        private static void Fill(int[] a)
+        {
+            for (int i = 0; i < a.Length; ++i)
+            {
+                a[i] += i;
             }
         }
 
@@ -81,16 +94,17 @@ namespace ConsoleApplication
             }
         }
 
-        private static Action GetWorkload(INaiveSpinLock naiveLock, Barrier barrier, AcquireAction acquireAction)
+        private static Action GetWorkload(INaiveSpinLock naiveLock, Barrier barrier, AcquireAction acquireAction, Action releaseAction)
         {
             return () => 
             {
-                barrier.SignalAndWait();        
+                barrier.SignalAndWait();  
                 while(!acquireAction.Finished)
                 {
                     naiveLock.Enter();
                     acquireAction.DoWork(); // Don't bother double checking here, only off by numThreads acquires.
                     naiveLock.Exit();
+                    releaseAction();
                 }
                 barrier.SignalAndWait();
             };
