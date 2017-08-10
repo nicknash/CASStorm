@@ -26,6 +26,8 @@ namespace ConsoleApplication
                     return new NaiveAggressiveSpinLock();
                 case "ntat":
                     return new NaiveTestAndTestSpinLock();
+                case "ut":
+                    return new UnscalableTicketLock();
             }
             throw new Exception($"Unknown lock type {type}");
         }
