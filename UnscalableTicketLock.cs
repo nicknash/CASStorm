@@ -2,12 +2,12 @@ using System.Threading;
 
 sealed class UnscalableTicketLock : INaiveSpinLock
 {
-    private int _currentTicket = 1;
-    private int _nextTicket;
+    private long _currentTicket = 1;
+    private long _nextTicket;
 
     public void Enter()
     {
-        int myTicket = Interlocked.Increment(ref _nextTicket);
+        long myTicket = Interlocked.Increment(ref _nextTicket);
         while (myTicket != Volatile.Read(ref _currentTicket))
         {
             continue;

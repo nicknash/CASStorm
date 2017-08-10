@@ -11,11 +11,11 @@ namespace ConsoleApplication
             int minThreads = Int32.Parse(args[0]);
             int maxThreads = Int32.Parse(args[1]);
             int numLockAcquires = Int32.Parse(args[2]);
-            int numPassesPerAcquire = 0;//Int32.Parse(args[3]);
-            var lockType = args[3];
+            int numReleaseIterations = Int32.Parse(args[3]);
+            var lockType = args[4];
             
             var naiveLock = GetLock(lockType);
-            RunTest(numLockAcquires, numPassesPerAcquire, naiveLock, minThreads, maxThreads);            
+            RunTest(numLockAcquires, numReleaseIterations, naiveLock, minThreads, maxThreads);            
         }
 
         private static INaiveSpinLock GetLock(string type)
@@ -32,30 +32,28 @@ namespace ConsoleApplication
             throw new Exception($"Unknown lock type {type}");
         }
 
-        private static void RunTest(int numLockAcquires, int numPassesPerAcquire, INaiveSpinLock naiveLock, int minThreads, int maxThreads)
+        private static void RunTest(int numLockAcquires, int numReleaseIterations, INaiveSpinLock naiveLock, int minThreads, int maxThreads)
         {
             var a = new int[256];
             Action fill = () => Fill(a);
-            Console.WriteLine($"----- Beginning Test Run Lock={naiveLock.GetType()} minThreads={minThreads}, maxThreads={maxThreads}, numLockAcquires={numLockAcquires}, numPassesPerAcqure={numPassesPerAcquire} ------");
-            Console.WriteLine($"NumThreads,NumAcquires,TotalMillisecons");
+            Console.WriteLine($"----- Beginning Test Run Lock={naiveLock.GetType()} minThreads={minThreads}, maxThreads={maxThreads}, numLockAcquires={numLockAcquires}, numReleaseIterations={numReleaseIterations} ------");
+            Console.WriteLine($"NumThreads,NumAcquires,TotalMilliseconds,NormalizedNanseconds");
             for(int i = minThreads; i <= maxThreads; ++i)
             {
                 var sw = new Stopwatch();
                 var barrier = new Barrier(i + 1);
                 var threads = new Thread[i];
                 var acquireAction = new AcquireAction(numLockAcquires, fill);
-                var p = new int[a.Length];
-                var r = new Random();      
-                Action releaseAction = () => 
-                { 
-                    int numFills = r.Next(1, 10); 
-                    for(int n = 0; n < numFills; ++n)
-                    {
-                        Fill(p);
-                    }
-                };
                 for(int j = 0; j < i; ++j)
                 {
+                    var p = new int[a.Length];
+                    Action releaseAction = () =>
+                    {
+                        for (int n = 0; n < numReleaseIterations; ++n)
+                        {
+                            Fill(p);
+                        }
+                    };
                     threads[j] = new Thread(new ThreadStart(GetWorkload(naiveLock, barrier, acquireAction, releaseAction)));
                     threads[j].Start();
                 }
@@ -63,7 +61,7 @@ namespace ConsoleApplication
                 sw.Start();
                 barrier.SignalAndWait();                
                 sw.Stop();
-                Console.WriteLine($"{i},{numLockAcquires},{sw.ElapsedMilliseconds}");
+                Console.WriteLine($"{i},{numLockAcquires},{sw.ElapsedMilliseconds},{sw.ElapsedMilliseconds*1e6/(acquireAction.AcquireCount*(1 + numReleaseIterations))}");
             }
         }
 
@@ -79,9 +77,9 @@ namespace ConsoleApplication
         {
             private readonly int _numAcquires;
             private readonly Action _work;
-            private int _acquireCount;
+            public int AcquireCount { get; private set; }
 
-            public bool Finished => _acquireCount >= _numAcquires;
+            public bool Finished => AcquireCount >= _numAcquires;
 
             public AcquireAction(int numAcquires, Action work)
             {
@@ -92,7 +90,7 @@ namespace ConsoleApplication
             public void DoWork()
             {
                 _work();
-                _acquireCount++;
+                AcquireCount++;
             }
         }
 
