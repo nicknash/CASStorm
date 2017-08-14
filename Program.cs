@@ -24,6 +24,14 @@ namespace ConsoleApplication
                     RunContendingTest(numLockAcquires, numReleaseIterations, naiveLock, numThreads, size);
                 }
             }
+            // Bus quiescensce test:
+            for(int quiesceDelay = 0; quiesceDelay <= 4096; quiesceDelay <<= 1)
+            {
+                for(int numThreads = minThreads; numThreads <= maxThreads; ++numThreads)
+                {
+                    // TODO.
+                }                
+            }
         }
 
         private static INaiveSpinLock GetLock(string type)
