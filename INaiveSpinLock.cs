@@ -1,5 +1,5 @@
 interface INaiveSpinLock
 {
-    void Enter();
+    void Enter(int threadIdx);
     void Exit();
 }

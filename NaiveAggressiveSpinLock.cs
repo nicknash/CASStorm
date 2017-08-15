@@ -4,7 +4,7 @@ sealed class NaiveAggressiveSpinLock : INaiveSpinLock
 {
     private int _held;
 
-    public void Enter()
+    public void Enter(int unused)
     {
         while(Interlocked.CompareExchange(ref _held, 1, 0) != 0)
         {

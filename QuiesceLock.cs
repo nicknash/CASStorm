@@ -1,39 +1,28 @@
-using System.Threading;
-
 sealed class QuiesceLock : INaiveSpinLock
 {
     private readonly int _acquireAttemptDelayIterations;
+    private readonly INaiveSpinLock _naiveTTASLock;
 
-    private int _held;
+    public int[] _canary;
 
-    public int Canary;
-
-    public QuiesceLock(int acquireAttemptDelayIterations)
+    public QuiesceLock(int acquireAttemptDelayIterations, int numThreads)
     {
+        _naiveTTASLock = new NaiveTestAndTestSpinLock();
         _acquireAttemptDelayIterations = acquireAttemptDelayIterations;
+        _canary = new int[numThreads << 7]; // Very
     }
 
-    public void Enter()
+    public void Enter(int threadIdx)
     {
-        while(true)
+        _naiveTTASLock.Enter(0);
+        for (int i = 0; i < _acquireAttemptDelayIterations; ++i)
         {
-            if(Volatile.Read(ref _held) == 1)
-            {
-                continue;
-            }
-            for(int i = 0; i < _acquireAttemptDelayIterations; ++i)
-            {
-                Canary += (Canary & i) * (i + _acquireAttemptDelayIterations);
-            }
-            if(Interlocked.CompareExchange(ref _held, 1, 0) == 0)
-            {
-                break;
-            }
+            _canary[threadIdx << 7] += (_canary[threadIdx << 7] & i) * (i + _acquireAttemptDelayIterations);
         }
     }
 
     public void Exit()
     {
-         Volatile.Write(ref _held, 0);
+        _naiveTTASLock.Exit();
     }
 }
