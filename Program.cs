@@ -101,20 +101,6 @@ namespace ConsoleApplication
             }
         }
 
-        private static ILock GetLock(string type)
-        {
-            switch(type)
-            {
-                case "na":
-                    return new NaiveAggressiveSpinLock();
-                case "ntat":
-                    return new NaiveTestAndTestSpinLock();
-                case "ut":
-                    return new UnscalableTicketLock();
-            }
-            throw new Exception($"Unknown lock type {type}");
-        }
-
         private static TestResult RunContendingTest(int numLockAcquires, int numReleaseIterations, ILock naiveLock, int numThreads, int size, Action acquireAction)
         {
             var sw = new Stopwatch();
