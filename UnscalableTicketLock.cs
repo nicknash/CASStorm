@@ -1,6 +1,6 @@
 using System.Threading;
 
-sealed class UnscalableTicketLock : INaiveSpinLock
+sealed class UnscalableTicketLock : ILock
 {
     private long _currentTicket = 1;
     private long _nextTicket;

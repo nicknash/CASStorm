@@ -1,6 +1,6 @@
 using System.Threading;
 
-sealed class NaiveAggressiveSpinLock : INaiveSpinLock
+sealed class NaiveAggressiveSpinLock : ILock
 {
     private int _held;
 

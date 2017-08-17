@@ -33,26 +33,28 @@ namespace ConsoleApplication
             int maxThreads = Int32.Parse(args[1]);
             int numLockAcquires = Int32.Parse(args[2]);
             int numReleaseIterations = Int32.Parse(args[3]);
-            var lockType = args[4];
             int minSizePower = Int32.Parse(args[5]);
             int maxSizePower = Int32.Parse(args[6]);
             int maxQueisceDelayPower = Int32.Parse(args[7]);
+            bool runQueisceTest = args[8] == "q";
 
             Console.WriteLine("Running scalability test: ");
-            var naiveLock = GetLock(lockType); 
-            int numScalingTestResults = (1 + maxSizePower - minSizePower) * (1 + maxThreads - minThreads);  
+            var locks = new ILock[] { new NaiveAggressiveSpinLock(), new NaiveTestAndTestSpinLock(), new KernelLock()};
+            int numScalingTestResults = locks.Length * (1 + maxSizePower - minSizePower) * (1 + maxThreads - minThreads);  
             var scalingTestResults = new TestResult[numScalingTestResults];
             int scalingResultIdx = 0;
-            Console.Write($"[{new string(' ', numScalingTestResults)}]\r[");
-            for (int sizePower = minSizePower; sizePower <= maxSizePower; ++sizePower)
+            foreach (ILock theLock in locks)
             {
-                for (int numThreads = minThreads; numThreads <= maxThreads; ++numThreads)
+                for (int sizePower = minSizePower; sizePower <= maxSizePower; ++sizePower)
                 {
-                    int size = 1 << sizePower;
-                    var a = new int[size];
-                    scalingTestResults[scalingResultIdx] = RunContendingTest(numLockAcquires, numReleaseIterations, naiveLock, numThreads, size, () => Fill(a));
-                    Console.Write("*");
-                    ++scalingResultIdx;
+                    for (int numThreads = minThreads; numThreads <= maxThreads; ++numThreads)
+                    {
+                        int size = 1 << sizePower;
+                        var a = new int[size];
+                        Console.Write($"{1 + scalingResultIdx}/{numScalingTestResults}\r                 ");
+                        scalingTestResults[scalingResultIdx] = RunContendingTest(numLockAcquires, numReleaseIterations, theLock, numThreads, size, () => Fill(a));
+                        ++scalingResultIdx;
+                    }
                 }
             }
             Console.WriteLine();
@@ -60,28 +62,30 @@ namespace ConsoleApplication
             Console.WriteLine($"Writing test results to {scalingResultsFileName}");
             WriteTestResults(scalingResultsFileName, scalingTestResults);
 
-            Console.WriteLine("------------------------------------------------");
-            Console.WriteLine("Running bus quiescensce test: ");
-            int maxQueisceDelay = 1 << maxQueisceDelayPower;
-            int numQuiesceResults = (1 + maxQueisceDelayPower) * (1 + maxThreads - minThreads);
-            Console.Write($"[{new string(' ', numQuiesceResults)}]\r[");            
-            var quiesceResults = new TestResult[numQuiesceResults];
-            int quiesceResultIdx = 0;
-            for(int quiesceDelay = 1; quiesceDelay <= maxQueisceDelay; quiesceDelay <<= 1)
+            if (runQueisceTest)
             {
-                for(int numThreads = minThreads; numThreads <= maxThreads; ++numThreads)
+                Console.WriteLine("------------------------------------------------");
+                Console.WriteLine("Running bus quiescensce test: ");
+                int maxQueisceDelay = 1 << maxQueisceDelayPower;
+                int numQuiesceResults = (1 + maxQueisceDelayPower) * (1 + maxThreads - minThreads);
+                var quiesceResults = new TestResult[numQuiesceResults];
+                int quiesceResultIdx = 0;
+                for (int quiesceDelay = 1; quiesceDelay <= maxQueisceDelay; quiesceDelay <<= 1)
                 {
-                    var quiesceLock = new QuiesceLock(quiesceDelay, numThreads);
-                    var a = new int[256];
-                    quiesceResults[quiesceResultIdx] = RunContendingTest(numLockAcquires, numReleaseIterations, quiesceLock, numThreads, a.Length, () => Fill(a));
-                    Console.Write("*");
-                    ++quiesceResultIdx;
-                }                
+                    for (int numThreads = minThreads; numThreads <= maxThreads; ++numThreads)
+                    {
+                        var quiesceLock = new QuiesceLock(quiesceDelay, numThreads);
+                        var a = new int[256];
+                        Console.Write($"{1 + quiesceResultIdx}/{numQuiesceResults}\r                 ");
+                        quiesceResults[quiesceResultIdx] = RunContendingTest(numLockAcquires, numReleaseIterations, quiesceLock, numThreads, a.Length, () => Fill(a));
+                        ++quiesceResultIdx;
+                    }
+                }
+                Console.WriteLine();
+                var quiesceResultsFileName = $"QuiesceResults-{Process.GetCurrentProcess().Id}.csv";
+                Console.WriteLine($"Writing test results to {quiesceResultsFileName}");
+                WriteTestResults(quiesceResultsFileName, quiesceResults);
             }
-            Console.WriteLine();
-            var quiesceResultsFileName = $"QuiesceResults-{Process.GetCurrentProcess().Id}.csv";
-            Console.WriteLine($"Writing test results to {quiesceResultsFileName}");
-            WriteTestResults(quiesceResultsFileName, quiesceResults);
         }
 
         private static void WriteTestResults(string fileName, TestResult[] results)
@@ -97,7 +101,7 @@ namespace ConsoleApplication
             }
         }
 
-        private static INaiveSpinLock GetLock(string type)
+        private static ILock GetLock(string type)
         {
             switch(type)
             {
@@ -111,7 +115,7 @@ namespace ConsoleApplication
             throw new Exception($"Unknown lock type {type}");
         }
 
-        private static TestResult RunContendingTest(int numLockAcquires, int numReleaseIterations, INaiveSpinLock naiveLock, int numThreads, int size, Action acquireAction)
+        private static TestResult RunContendingTest(int numLockAcquires, int numReleaseIterations, ILock naiveLock, int numThreads, int size, Action acquireAction)
         {
             var sw = new Stopwatch();
             var barrier = new Barrier(numThreads + 1);
@@ -143,7 +147,7 @@ namespace ConsoleApplication
                 a[i] += i;
             }
         }
-        private static Action GetWorkload(INaiveSpinLock naiveLock, Barrier barrier, int threadIdx, int numAcquires, Action acquireAction, Action releaseAction)
+        private static Action GetWorkload(ILock naiveLock, Barrier barrier, int threadIdx, int numAcquires, Action acquireAction, Action releaseAction)
         {
             return () => 
             {

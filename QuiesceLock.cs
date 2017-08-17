@@ -1,7 +1,7 @@
-sealed class QuiesceLock : INaiveSpinLock
+sealed class QuiesceLock : ILock
 {
     private readonly int _acquireAttemptDelayIterations;
-    private readonly INaiveSpinLock _naiveTTASLock;
+    private readonly ILock _naiveTTASLock;
 
     public int[] _canary;
 
