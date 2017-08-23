@@ -2,11 +2,13 @@
 using System.IO;
 using System.Threading;
 using System.Diagnostics;
+using System.Collections.Generic;
 
 namespace ConsoleApplication
 {
     class TestResult
     {
+        public string WorkloadName { get; }
         public int NumThreads { get; }
         public string LockType { get; }
         public int NumLockAcquires { get; }
@@ -14,8 +16,9 @@ namespace ConsoleApplication
         public int CriticalSectionSize { get; }
         public double TotalMilliseconds { get; }
 
-        public TestResult(int numThreads, string lockType, int numLockAcquires, int numReleaseIterations, int criticalSectionSize, double totalMilliseconds)
+        public TestResult(string workloadName, int numThreads, string lockType, int numLockAcquires, int numReleaseIterations, int criticalSectionSize, double totalMilliseconds)
         {
+            WorkloadName = workloadName;
             NumThreads = numThreads;
             LockType = lockType;
             NumLockAcquires = numLockAcquires;
@@ -25,8 +28,70 @@ namespace ConsoleApplication
         }
     }
 
+    class WorkloadEntry
+    {
+        public readonly Action AcquireAction;
+        public readonly Action ReleaseAction;
+        public readonly int AcquireSize;
+        public readonly int ReleaseSize;
+
+        public WorkloadEntry()
+        {
+
+        }
+    }
+
+    interface IWorkload 
+    {
+        string Name { get; }
+        IReadOnlyList<WorkloadEntry> Entries { get; }
+    }
+
+    class ArrayFillWorkload : IWorkload
+    {
+        public string Name { get; }
+        public IReadOnlyList<WorkloadEntry> Entries { get; }
+        public ArrayFillWorkload(int minSizePower, int maxSizePower, int maxReleaseIterationsBound)
+        {
+            var entries = new List<WorkloadEntry>();
+            for (int sizePower = minSizePower; sizePower <= maxSizePower; ++sizePower)
+            {
+                for (int releaseIterationsBound = 0; releaseIterationsBound <= maxReleaseIterationsBound; ++releaseIterationsBound)
+                {
+
+                }
+            }
+
+        }
+
+        private static void Fill(int[] a, int length)
+        {
+            for (int i = 0; i < length; ++i)
+            {
+                a[i] += i;
+            }
+        }
+    }
+
+    class IncrementWorkload : IWorkload 
+    {
+        // TODO: single counter only (shouldn't be very interesting, as should be limited case / sanity check of ArrayFill)
+    }
+
+    class PureWaitWorkload : IWorkload 
+    {
+        // TODO: Pure waits 
+    }
+
     public class Program
     {
+        private static void WaitNanos(double numNanos)
+        {
+            double numTicks = 1/Stopwatch.Frequency*numNanos*1e-9;
+            var t = Stopwatch.GetTimestamp();
+            while(Stopwatch.GetTimestamp() - t < numTicks) ;
+        }
+
         public static void Main(string[] args)
         {
             int minThreads = Int32.Parse(args[0]);
@@ -39,7 +104,7 @@ namespace ConsoleApplication
             bool runQueisceTest = args[7] == "q";
 
             Console.WriteLine("Running scalability test: ");
-            var locks = new ILock[] { new NaiveAggressiveSpinLock(), new NaiveTestAndTestSpinLock(), new KernelLock()};
+            var locks = new ILock[] { new NaiveAggressiveSpinLock(), new NaiveTestAndTestSpinLock(), new UnscalableTicketLock(), new KernelLock()};
             int numScalingTestResults = locks.Length * (1 + maxSizePower - minSizePower) * (1 + maxThreads - minThreads) * (1 + maxReleaseIterationsBound);  
             int maxSize = 1 << maxSizePower;
             var contendedData = new int[maxSize];
