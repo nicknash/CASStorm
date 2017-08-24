@@ -1,6 +1,6 @@
 using System;
 
-namespace ConsoleApplication
+namespace CASStorm.Workloads
 {
     class WorkloadEntry
     {
@@ -11,7 +11,10 @@ namespace ConsoleApplication
 
         public WorkloadEntry(int acquireSize, Action acquireAction, int releaseSize, Action<int> releaseAction)
         {
-
+            AcquireSize = acquireSize;
+            AcquireAction = acquireAction;
+            ReleaseSize = releaseSize;
+            ReleaseAction = releaseAction;
         }
     }
 }

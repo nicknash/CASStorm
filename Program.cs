@@ -4,7 +4,10 @@ using System.IO;
 using System.Threading;
 using System.Diagnostics;
 
-namespace ConsoleApplication
+using CASStorm.Workloads;
+using CASStorm.Locks;
+
+namespace CASStorm
 {
 /* 
     class IncrementWorkload : IWorkload 
@@ -83,13 +86,13 @@ namespace ConsoleApplication
                         foreach (var workLoadEntry in workload.Entries)
                         {
                             Console.Write($"                             \r{1 + scalingResultIdx}/{numScalingTestResults}");
-                            scalingTestResults[scalingResultIdx] = RunContendingTest(numLockAcquires, theLock, numThreads, workLoadEntry, workload.Name);
+                            scalingTestResults[scalingResultIdx] = GetTestResult(numLockAcquires, theLock, numThreads, workLoadEntry, workload.Name);
                             ++scalingResultIdx;
                         }
                     }
                 }
             }
-
+/* 
             Console.WriteLine();
             var scalingResultsFileName = $"ScalingResults-{Process.GetCurrentProcess().Id}.csv";
             Console.WriteLine($"Writing test results to {scalingResultsFileName}");
@@ -119,6 +122,7 @@ namespace ConsoleApplication
                 Console.WriteLine($"Writing test results to {quiesceResultsFileName}");
                 WriteTestResults(quiesceResultsFileName, quiesceResults);
             }
+   */
         }
 
         private static void WriteTestResults(string fileName, TestResult[] results)
@@ -134,7 +138,7 @@ namespace ConsoleApplication
             }
         }
 
-        private static TestResult RunContendingTest(int numLockAcquires, ILock naiveLock, int numThreads, WorkloadEntry workloadEntry, string workloadName)
+        private static TestResult GetTestResult(int numLockAcquires, ILock naiveLock, int numThreads, WorkloadEntry workloadEntry, string workloadName)
         {
             var sw = new Stopwatch();
             var barrier = new Barrier(numThreads + 1);
