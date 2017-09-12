@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace CASStorm.Workloads
+namespace CASStorm
 {
     class Utils
     {

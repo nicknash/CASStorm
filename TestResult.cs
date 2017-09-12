@@ -9,8 +9,9 @@ namespace CASStorm
         public int NumReleaseIterations { get; }
         public int CriticalSectionSize { get; }
         public double TotalMilliseconds { get; }
+        public int QuiesceDelay { get; }
 
-        public TestResult(string workloadName, int numThreads, string lockType, int numLockAcquires, int numReleaseIterations, int criticalSectionSize, double totalMilliseconds)
+        public TestResult(string workloadName, int numThreads, string lockType, int numLockAcquires, int numReleaseIterations, int criticalSectionSize, double totalMilliseconds, int quiesceDelay)
         {
             WorkloadName = workloadName;
             NumThreads = numThreads;
