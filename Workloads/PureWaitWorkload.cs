@@ -10,29 +10,22 @@ namespace CASStorm.Workloads
 
         public IReadOnlyList<WorkloadEntry> Entries { get; }
 
-        public PureWaitWorkload(int minThreads, int maxThreads, int minWaitPower, int maxWaitPower, int minReleaseMultiplier, int maxReleaseMultiplier)
+        public PureWaitWorkload(int minWaitPower, int maxWaitPower, int minReleaseMultiplier, int maxReleaseMultiplier)
         {
             var entries = new List<WorkloadEntry>();
             for (int waitPower = minWaitPower; waitPower <= maxWaitPower; ++waitPower)
             {
                 int numNanos = 1 << waitPower;
-                Action acquireAction = () => WaitNanos(numNanos);
+                Action acquireAction = () => Utils.WaitNanos(numNanos);
                 for (int releaseMultiplier = minReleaseMultiplier; releaseMultiplier <= maxReleaseMultiplier; ++releaseMultiplier)
                 {
                     int numReleaseNanos = releaseMultiplier * numNanos;
-                    Action<int> releaseAction = _ => WaitNanos(numReleaseNanos); 
-                    var entry = new WorkloadEntry(numNanos, acquireAction, releaseMultiplier, releaseAction);
+                    Action<int> releaseAction = _ => Utils.WaitNanos(numReleaseNanos); 
+                    var entry = new WorkloadEntry(numNanos, acquireAction, numReleaseNanos, releaseAction);
                     entries.Add(entry);
                 }
             }
             Entries = entries;           
-        }
-
-        private static void WaitNanos(double numNanos)
-        {
-            double numTicks = numNanos/Stopwatch.Frequency*1e-9;
-            var t = Stopwatch.GetTimestamp();
-            while(Stopwatch.GetTimestamp() - t < numTicks) ;
         }
     }
 }

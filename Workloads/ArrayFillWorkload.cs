@@ -18,7 +18,7 @@ namespace CASStorm.Workloads
             for (int sizePower = minSizePower; sizePower <= maxSizePower; ++sizePower)
             {
                 int acquireSize = 1 << sizePower;
-                Action acquireAction = () => Fill(shared, 0, acquireSize);
+                Action acquireAction = () => Utils.Fill(shared, 0, acquireSize);
                 for (int releaseIterationsBound = 0; releaseIterationsBound <= maxReleaseIterationsBound; ++releaseIterationsBound)
                 {
                     int size = acquireSize;
@@ -37,17 +37,9 @@ namespace CASStorm.Workloads
             int startIdx = threadIdx << separationPower;
             for (int i = 0; i < numReleaseIterations; ++i)
             {
-                Fill(releaseData, startIdx, size);
+                Utils.Fill(releaseData, startIdx, size);
             }
             return;
-        }
-
-        private static void Fill(int[] a, int start, int length)
-        {
-            for (int i = 0; i < length; ++i)
-            {
-                a[i] += i;
-            }
         }
     }
 }

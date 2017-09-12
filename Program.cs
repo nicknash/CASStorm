@@ -9,13 +9,6 @@ using CASStorm.Locks;
 
 namespace CASStorm
 {
-/* 
-    class IncrementWorkload : IWorkload 
-    {
-        // TODO: single counter only (shouldn't be very interesting, as should be limited case / sanity check of ArrayFill)
-    }
-
-*/
     public class Program
     {
 
@@ -35,16 +28,12 @@ namespace CASStorm
             Console.WriteLine("Running scalability test: ");
             var locks = new ILock[] { new NaiveAggressiveSpinLock(), new NaiveTestAndTestSpinLock(), new UnscalableTicketLock(), new KernelLock()};
             var workloads = new IWorkload[] { new ArrayFillWorkload(minSizePower, maxSizePower, maxReleaseIterationsBound, maxThreads)
-                                            , new PureWaitWorkload(minThreads, maxThreads, minWaitPower, maxWaitPower, 1, maxReleaseIterationsBound)};
+                                            , new PureWaitWorkload(minWaitPower, maxWaitPower, 1, maxReleaseIterationsBound)
+                                            , new FillWaitWorkload(minSizePower, maxSizePower, minWaitPower, maxWaitPower)};
             var totalWorkloadSize = workloads.Select(i => i.Entries.Count).Sum();
             int numScalingTestResults = locks.Length *  (1 + maxThreads - minThreads) * totalWorkloadSize;  
             int maxSize = 1 << maxSizePower;
-            var contendedData = new int[maxSize];
-            int[][] releaseData = new int[maxThreads * 2][];
-            for(int i = 0; i < maxThreads * 2; ++i)
-            {
-                releaseData[i] = new int[maxSize];
-            }
+            
             var scalingTestResults = new TestResult[numScalingTestResults];
             int scalingResultIdx = 0;
             foreach (ILock theLock in locks)
@@ -62,16 +51,22 @@ namespace CASStorm
                     }
                 }
             }
-/* 
+ 
             Console.WriteLine();
             var scalingResultsFileName = $"ScalingResults-{Process.GetCurrentProcess().Id}.csv";
             Console.WriteLine($"Writing test results to {scalingResultsFileName}");
             WriteTestResults(scalingResultsFileName, scalingTestResults);
 
+            // TODO: 
+            //  - Use a 'pure wait' quiesce lock in addition to the below (rename it to WorkQueisceLock)
+            //  - Maybe time individual critical section executions, to give easier to interpret experimental results.
+            //  - Perhaps easiest to structure as two separate bus quiescence tests.
             if (runQueisceTest)
             {
                 Console.WriteLine("------------------------------------------------");
                 Console.WriteLine("Running bus quiescensce test: ");
+                var fillWorkload = new ArrayFillWorkload(8, 8, maxReleaseIterationsBound, maxThreads);
+
                 int maxQueisceDelay = 1 << maxQueisceDelayPower;
                 int numQuiesceResults = (1 + maxQueisceDelayPower) * (1 + maxThreads - minThreads);
                 var quiesceResults = new TestResult[numQuiesceResults];
@@ -81,10 +76,13 @@ namespace CASStorm
                 {
                     for (int numThreads = minThreads; numThreads <= maxThreads; ++numThreads)
                     {
-                        var quiesceLock = new QuiesceLock(quiesceDelay, numThreads);
-                        Console.Write($"                                    \r{1 + quiesceResultIdx}/{numQuiesceResults}");
-                        quiesceResults[quiesceResultIdx] = RunContendingTest(numLockAcquires, maxReleaseIterationsBound, quiesceLock, numThreads, releaseData, contendedData.Length, () => Fill(contendedData, criticalSectonSize));
-                        ++quiesceResultIdx;
+                        foreach (var workloadEntry in fillWorkload.Entries)
+                        {
+                            var quiesceLock = new QuiesceLock(quiesceDelay, numThreads);
+                            Console.Write($"                                    \r{1 + quiesceResultIdx}/{numQuiesceResults}");
+                            quiesceResults[quiesceResultIdx] = GetTestResult(numLockAcquires, quiesceLock, numThreads, workloadEntry, fillWorkload.Name);
+                            ++quiesceResultIdx;
+                        }
                     }
                 }
                 Console.WriteLine();
@@ -92,7 +90,7 @@ namespace CASStorm
                 Console.WriteLine($"Writing test results to {quiesceResultsFileName}");
                 WriteTestResults(quiesceResultsFileName, quiesceResults);
             }
-   */
+   
         }
 
         private static void WriteTestResults(string fileName, TestResult[] results)
