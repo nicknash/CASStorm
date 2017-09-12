@@ -11,7 +11,7 @@ namespace CASStorm.Locks
         {
             _naiveTTASLock = new NaiveTestAndTestSpinLock();
             _acquireAttemptDelayIterations = acquireAttemptDelayIterations;
-            _canary = new int[numThreads << 7]; // Very
+            _canary = new int[numThreads << 7]; // Conservatively large spacing to try and avoid false sharing.
         }
 
         public void Enter(int threadIdx)

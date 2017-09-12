@@ -3,6 +3,7 @@ using System.Linq;
 using System.IO;
 using System.Threading;
 using System.Diagnostics;
+using System.Collections.Generic;
 
 using CASStorm.Workloads;
 using CASStorm.Locks;
@@ -11,7 +12,6 @@ namespace CASStorm
 {
     public class Program
     {
-
         public static void Main(string[] args)
         {  
             int minThreads = Int32.Parse(args[0]);
@@ -23,14 +23,14 @@ namespace CASStorm
             int minWaitPower = Int32.Parse(args[6]);
             int maxWaitPower = Int32.Parse(args[7]);
             int maxQueisceDelayPower = Int32.Parse(args[8]);
-            bool runQueisceTest = args[9] == "q";
 
             Console.WriteLine("Running scalability test: ");
             var locks = new ILock[] { new NaiveAggressiveSpinLock(), new NaiveTestAndTestSpinLock(), new UnscalableTicketLock(), new KernelLock()};
             var workloads = new IWorkload[] { new ArrayFillWorkload(minSizePower, maxSizePower, maxReleaseIterationsBound, maxThreads)
                                             , new PureWaitWorkload(minWaitPower, maxWaitPower, 1, maxReleaseIterationsBound)
-                                            , new FillWaitWorkload(minSizePower, maxSizePower, minWaitPower, maxWaitPower)};
-            var totalWorkloadSize = workloads.Select(i => i.Entries.Count).Sum();
+                                            , new FillWaitWorkload(minSizePower, maxSizePower, minWaitPower, maxWaitPower)
+                                            };
+            var totalWorkloadSize = TotalWorkloadSize(workloads);
             int numScalingTestResults = locks.Length *  (1 + maxThreads - minThreads) * totalWorkloadSize;  
             int maxSize = 1 << maxSizePower;
             
@@ -61,38 +61,46 @@ namespace CASStorm
             //  - Use a 'pure wait' quiesce lock in addition to the below (rename it to WorkQueisceLock)
             //  - Maybe time individual critical section executions, to give easier to interpret experimental results.
             //  - Perhaps easiest to structure as two separate bus quiescence tests.
-            if (runQueisceTest)
-            {
-                Console.WriteLine("------------------------------------------------");
-                Console.WriteLine("Running bus quiescensce test: ");
-                var fillWorkload = new ArrayFillWorkload(8, 8, maxReleaseIterationsBound, maxThreads);
 
-                int maxQueisceDelay = 1 << maxQueisceDelayPower;
-                int numQuiesceResults = (1 + maxQueisceDelayPower) * (1 + maxThreads - minThreads);
-                var quiesceResults = new TestResult[numQuiesceResults];
-                int quiesceResultIdx = 0;
-                int criticalSectonSize = 256;
-                for (int quiesceDelay = 1; quiesceDelay <= maxQueisceDelay; quiesceDelay <<= 1)
+            Console.WriteLine("------------------------------------------------");
+            Console.WriteLine("Running bus quiescensce test: ");
+            workloads = new IWorkload[] {new ArrayFillWorkload(8, 8, maxReleaseIterationsBound, maxThreads), 
+                                         new PureWaitWorkload(minWaitPower, maxWaitPower, 0, 0) 
+                                        };
+            totalWorkloadSize = TotalWorkloadSize(workloads);
+            var lockFactories = new Func<int, int, ILock>[]{(quiesceDelay, numThreads) => new QuiesceLock(quiesceDelay, numThreads)
+                                                           };
+
+            int maxQueisceDelay = 1 << maxQueisceDelayPower;
+            int numQuiesceResults = (1 + maxQueisceDelayPower) * (1 + maxThreads - minThreads) * totalWorkloadSize;
+            var quiesceResults = new TestResult[numQuiesceResults];
+            int quiesceResultIdx = 0;
+            for (int quiesceDelay = 1; quiesceDelay <= maxQueisceDelay; quiesceDelay <<= 1)
+            {
+                foreach (var getLock in lockFactories)
                 {
-                    for (int numThreads = minThreads; numThreads <= maxThreads; ++numThreads)
+                    foreach (var workload in workloads)
                     {
-                        foreach (var workloadEntry in fillWorkload.Entries)
+                        for (int numThreads = minThreads; numThreads <= maxThreads; ++numThreads)
                         {
-                            var quiesceLock = new QuiesceLock(quiesceDelay, numThreads);
-                            Console.Write($"                                    \r{1 + quiesceResultIdx}/{numQuiesceResults}");
-                            quiesceResults[quiesceResultIdx] = GetTestResult(numLockAcquires, quiesceLock, numThreads, workloadEntry, fillWorkload.Name);
-                            ++quiesceResultIdx;
+                            var quiesceLock = getLock(quiesceDelay, numThreads);
+                            foreach (var workloadEntry in workload.Entries)
+                            {
+                                Console.Write($"                                    \r{1 + quiesceResultIdx}/{numQuiesceResults}");
+                                quiesceResults[quiesceResultIdx] = GetTestResult(numLockAcquires, quiesceLock, numThreads, workloadEntry, workload.Name);
+                                ++quiesceResultIdx;
+                            }
                         }
                     }
                 }
-                Console.WriteLine();
-                var quiesceResultsFileName = $"QuiesceResults-{Process.GetCurrentProcess().Id}.csv";
-                Console.WriteLine($"Writing test results to {quiesceResultsFileName}");
-                WriteTestResults(quiesceResultsFileName, quiesceResults);
             }
-   
+            Console.WriteLine();
+            var quiesceResultsFileName = $"QuiesceResults-{Process.GetCurrentProcess().Id}.csv";
+            Console.WriteLine($"Writing test results to {quiesceResultsFileName}");
+            WriteTestResults(quiesceResultsFileName, quiesceResults);
         }
-
+        private static int TotalWorkloadSize(IReadOnlyList<IWorkload> workloads) => workloads.Select(i => i.Entries.Count).Sum();
+      
         private static void WriteTestResults(string fileName, TestResult[] results)
         {
             using(var writer = File.CreateText(fileName))
