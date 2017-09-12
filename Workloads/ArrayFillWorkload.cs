@@ -22,7 +22,7 @@ namespace CASStorm.Workloads
                 for (int releaseIterationsBound = 0; releaseIterationsBound <= maxReleaseIterationsBound; ++releaseIterationsBound)
                 {
                     int size = acquireSize;
-                    Action<int> releaseAction = idx => ReleaseAction(idx, releaseData, maxReleaseIterationsBound, SeparationPower, size, random);
+                    Action<int> releaseAction = idx => ReleaseAction(idx, releaseData, releaseIterationsBound, SeparationPower, size, random);
                     var entry = new WorkloadEntry(size, acquireAction, releaseIterationsBound, releaseAction);
                     entries.Add(entry);
                 }
