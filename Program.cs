@@ -29,15 +29,19 @@ namespace CASStorm
             Console.WriteLine("------------------------------------------------");
             Console.WriteLine("Running bus quiescensce test: ");
             RunQuiescensceTest(numLockAcquires, maxQuiesceDelayPower, minWaitPower, maxWaitPower, maxReleaseIterationsBound, minThreads, maxThreads);
-
-
+            Console.WriteLine("------------------------------------------------");
+            Console.WriteLine("Running TTAS Wake-up count test: ");
+            RunWakeUpTest(minThreads, maxThreads, numLockAcquires);
+            Console.WriteLine("------------------------------------------------");
+            Console.WriteLine("Running critical section idle time test: ");                        
+            RunIdleTimeTest();
         }
 
         private static void RunScalingTest(int numLockAcquires, int minSizePower, int maxSizePower, int maxReleaseIterationsBound, int minThreads, int maxThreads, int minWaitPower, int maxWaitPower)
         {
             var locks = new ILock[] { new NaiveAggressiveSpinLock(), new NaiveTestAndTestSpinLock(), new UnscalableTicketLock(), new KernelLock()};
             var workloads = new IWorkload[] { new ArrayFillWorkload(minSizePower, maxSizePower, maxReleaseIterationsBound, maxThreads)
-                                            , new PureWaitWorkload(minWaitPower, maxWaitPower, 1, maxReleaseIterationsBound)
+                                            , new PureWaitWorkload(minWaitPower, maxWaitPower, 0, maxReleaseIterationsBound)
                                             , new FillWaitWorkload(minSizePower, maxSizePower, minWaitPower, maxWaitPower)
                                             };
             var totalWorkloadSize = TotalWorkloadSize(workloads);
@@ -71,8 +75,8 @@ namespace CASStorm
         private static void RunQuiescensceTest(int numLockAcquires, int maxQuiesceDelayPower, int minWaitPower, int maxWaitPower, int maxReleaseIterationsBound, int minThreads, int maxThreads)
         {
             var workloads = new IWorkload[] {new ArrayFillWorkload(8, 8, maxReleaseIterationsBound, maxThreads), 
-                                         new PureWaitWorkload(minWaitPower, maxWaitPower, 0, 0) 
-                                        };
+                                             new PureWaitWorkload(minWaitPower, maxWaitPower, 0, 0) 
+                                            };
             var totalWorkloadSize = TotalWorkloadSize(workloads);
             var lockFactories = new Func<int, int, ILock>[]{(quiesceDelay, numThreads) => new FillQuiesceLock(quiesceDelay, numThreads)
                                                            ,(quiesceDelay, _) => new WaitQuiesceLock(quiesceDelay)};
@@ -104,6 +108,37 @@ namespace CASStorm
             var quiesceResultsFileName = $"QuiesceResults-{Process.GetCurrentProcess().Id}.csv";
             Console.WriteLine($"Writing test results to {quiesceResultsFileName}");
             WriteTestResults(quiesceResultsFileName, quiesceResults);
+        }
+
+        private static void RunWakeUpTest(int minThreads, int maxThreads, int numLockAcquires)
+        {
+            var workload = new ArrayFillWorkload(0, 0, 0, maxThreads);
+            var entry = workload.Entries[0];
+            int numTestResults = maxThreads - minThreads + 1;
+            var results = new int[maxThreads];
+            for(int numThreads = minThreads; numThreads <= maxThreads; ++numThreads)
+            {
+                var wakeupCountLock = new WakeupCountTestAndTestAndSetLock();
+                Console.Write($"                                    \r{1 + numThreads - minThreads}/{numTestResults}");
+                GetTestResult(numLockAcquires, wakeupCountLock, numThreads, entry, "WakeUp", 0);
+                results[numThreads] = wakeupCountLock.NumWakeUps;
+            }
+            var resultsFileName = $"WakeupResults-{Process.GetCurrentProcess().Id}.csv";
+            Console.WriteLine();
+            Console.WriteLine($"Writing test results to {resultsFileName}");
+            using(var writer = File.CreateText(resultsFileName))
+            {
+                writer.WriteLine("NumThreads,NumLockAcquires,NumWakeUps");
+                for(int i = minThreads; i <= maxThreads; ++i)
+                {
+                    writer.WriteLine($"{i},{numLockAcquires},{results[i]}");
+                }
+            }
+        }
+
+        private static void RunIdleTimeTest()
+        {
+            // TODO: 
         }
 
         private static int TotalWorkloadSize(IReadOnlyList<IWorkload> workloads) => workloads.Select(i => i.Entries.Count).Sum();

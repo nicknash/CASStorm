@@ -2,7 +2,7 @@ using System.Threading;
 
 namespace CASStorm.Locks
 {
-    class KernelLock : ILock
+    sealed class KernelLock : ILock
     {
         private object _syncObject = new object();
 
