@@ -1,13 +1,13 @@
 namespace CASStorm.Locks
 {
-    sealed class QuiesceLock : ILock
+    sealed class FillQuiesceLock : ILock
     {
         private readonly int _acquireAttemptDelayIterations;
         private readonly ILock _naiveTTASLock;
 
         public int[] _canary;
 
-        public QuiesceLock(int acquireAttemptDelayIterations, int numThreads)
+        public FillQuiesceLock(int acquireAttemptDelayIterations, int numThreads)
         {
             _naiveTTASLock = new NaiveTestAndTestSpinLock();
             _acquireAttemptDelayIterations = acquireAttemptDelayIterations;

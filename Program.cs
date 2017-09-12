@@ -68,7 +68,7 @@ namespace CASStorm
                                          new PureWaitWorkload(minWaitPower, maxWaitPower, 0, 0) 
                                         };
             totalWorkloadSize = TotalWorkloadSize(workloads);
-            var lockFactories = new Func<int, int, ILock>[]{(quiesceDelay, numThreads) => new QuiesceLock(quiesceDelay, numThreads)
+            var lockFactories = new Func<int, int, ILock>[]{(quiesceDelay, numThreads) => new FillQuiesceLock(quiesceDelay, numThreads)
                                                            };
 
             int maxQueisceDelay = 1 << maxQueisceDelayPower;
