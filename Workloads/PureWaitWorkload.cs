@@ -17,7 +17,7 @@ namespace CASStorm.Workloads
             {
                 int numNanos = 1 << waitPower;
                 Action acquireAction = () => WaitNanos(numNanos);
-                for (int releaseMultiplier = 0; releaseMultiplier <= maxReleaseMultiplier; ++releaseMultiplier)
+                for (int releaseMultiplier = minReleaseMultiplier; releaseMultiplier <= maxReleaseMultiplier; ++releaseMultiplier)
                 {
                     int numReleaseNanos = releaseMultiplier * numNanos;
                     Action<int> releaseAction = _ => WaitNanos(numReleaseNanos); 

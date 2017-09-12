@@ -27,12 +27,15 @@ namespace CASStorm
             int maxReleaseIterationsBound = Int32.Parse(args[3]);
             int minSizePower = Int32.Parse(args[4]);
             int maxSizePower = Int32.Parse(args[5]);
-            int maxQueisceDelayPower = Int32.Parse(args[6]);
-            bool runQueisceTest = args[7] == "q";
+            int minWaitPower = Int32.Parse(args[6]);
+            int maxWaitPower = Int32.Parse(args[7]);
+            int maxQueisceDelayPower = Int32.Parse(args[8]);
+            bool runQueisceTest = args[9] == "q";
 
             Console.WriteLine("Running scalability test: ");
             var locks = new ILock[] { new NaiveAggressiveSpinLock(), new NaiveTestAndTestSpinLock(), new UnscalableTicketLock(), new KernelLock()};
-            var workloads = new IWorkload[] { new ArrayFillWorkload(minSizePower, maxSizePower, maxReleaseIterationsBound, maxThreads)};
+            var workloads = new IWorkload[] { new ArrayFillWorkload(minSizePower, maxSizePower, maxReleaseIterationsBound, maxThreads)
+                                            , new PureWaitWorkload(minThreads, maxThreads, minWaitPower, maxWaitPower, 1, maxReleaseIterationsBound)};
             var totalWorkloadSize = workloads.Select(i => i.Entries.Count).Sum();
             int numScalingTestResults = locks.Length *  (1 + maxThreads - minThreads) * totalWorkloadSize;  
             int maxSize = 1 << maxSizePower;
