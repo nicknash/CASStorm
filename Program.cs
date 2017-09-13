@@ -136,9 +136,30 @@ namespace CASStorm
             }
         }
 
-        private static void RunIdleTimeTest()
+        class IdleTimeTestResult
         {
-            // TODO: 
+            public int NumThreads { get; }
+            public string LockName { get; }
+            public double MinIdleTime { get;}
+            public double IdleTime25 { get; }
+            // etc
+        }
+
+        private static void RunIdleTimeTest(int minThreads, int maxThreads, int numLockAcquires)
+        {
+            var workload = new IdleTimeWorkload();
+            var locks = new ILock[] { new NaiveAggressiveSpinLock(), new NaiveTestAndTestSpinLock(), new UnscalableTicketLock(), new KernelLock()};
+
+            // numThreads,min,25,50,75,99,max,
+            var results = new IdleTimeTestResult[locks.Length * (1 + maxThreads - minThreads)];
+            foreach (var theLock in locks)
+            {
+                for (int numThreads = minThreads; numThreads <= maxThreads; ++numThreads)
+                {
+                    GetTestResult(numLockAcquires, theLock, numThreads, workload.Entries[0], "IdleTime", 0);
+                    workload.Reset();
+                }
+            }
         }
 
         private static int TotalWorkloadSize(IReadOnlyList<IWorkload> workloads) => workloads.Select(i => i.Entries.Count).Sum();
