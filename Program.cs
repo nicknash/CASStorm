@@ -10,7 +10,7 @@ using CASStorm.Locks;
 
 namespace CASStorm
 {
-    public class Program
+    public partial class Program
     {
         public static void Main(string[] args)
         {  
@@ -136,28 +136,41 @@ namespace CASStorm
             }
         }
 
-        class IdleTimeTestResult
-        {
-            public int NumThreads { get; }
-            public string LockName { get; }
-            public double MinIdleTime { get;}
-            public double IdleTime25 { get; }
-            // etc
-        }
-
         private static void RunIdleTimeTest(int minThreads, int maxThreads, int numLockAcquires)
         {
             var workload = new IdleTimeWorkload();
             var locks = new ILock[] { new NaiveAggressiveSpinLock(), new NaiveTestAndTestSpinLock(), new UnscalableTicketLock(), new KernelLock()};
-
-            // numThreads,min,25,50,75,99,max,
+            Func<long, double> ticksToMics = ticks => ticks*Stopwatch.Frequency*1e6;
             var results = new IdleTimeTestResult[locks.Length * (1 + maxThreads - minThreads)];
+            int resultIdx = 0;
             foreach (var theLock in locks)
             {
                 for (int numThreads = minThreads; numThreads <= maxThreads; ++numThreads)
                 {
                     GetTestResult(numLockAcquires, theLock, numThreads, workload.Entries[0], "IdleTime", 0);
+                    var idleTimes = workload.IdleTimesInTicks;
+                    int n = idleTimes.Count;
+                    idleTimes.Sort();
+                    results[resultIdx] = new IdleTimeTestResult(theLock.GetType().ToString(), numThreads, ticksToMics(idleTimes[0]), 
+                                                                                              ticksToMics(idleTimes[(int) (n * 0.25)]),
+                                                                                              ticksToMics(idleTimes[(int) (n * 0.5)]),
+                                                                                              ticksToMics(idleTimes[(int) (n * 0.75)]),
+                                                                                              ticksToMics(idleTimes[(int) (n * 0.99)]),
+                                                                                              ticksToMics(idleTimes[n - 1]));
+                    ++resultIdx;
                     workload.Reset();
+                }
+            }
+
+            var resultsFileName = $"IdleTimeResults-{Process.GetCurrentProcess().Id}.csv";
+            Console.WriteLine();
+            Console.WriteLine($"Writing test results to {resultsFileName}");
+            using(var writer = File.CreateText(resultsFileName))
+            {
+                writer.WriteLine("NumThreads,LockType,MinIdleTimeMics,25PercIdleTimeMics,50PercIdleTimeMics,75PercIdleTimeMics,99PercIdleTimeMics,MaxIdleTimeMics");
+                foreach(var r in results)
+                {
+                    writer.WriteLine($"{r.NumThreads},{r.LockName},{r.IdleTimeMinMics},{r.IdleTime25Mics},{r.IdleTime50Mics},{r.IdleTime75Mics},{r.IdleTime99Mics},{r.IdleTimeMaxMics}");
                 }
             }
         }
