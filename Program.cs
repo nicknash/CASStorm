@@ -34,7 +34,7 @@ namespace CASStorm
             RunWakeUpTest(minThreads, maxThreads, numLockAcquires);
             Console.WriteLine("------------------------------------------------");
             Console.WriteLine("Running critical section idle time test: ");                        
-            RunIdleTimeTest();
+            RunIdleTimeTest(minThreads, maxThreads, numLockAcquires);
         }
 
         private static void RunScalingTest(int numLockAcquires, int minSizePower, int maxSizePower, int maxReleaseIterationsBound, int minThreads, int maxThreads, int minWaitPower, int maxWaitPower)
@@ -82,7 +82,7 @@ namespace CASStorm
                                                            ,(quiesceDelay, _) => new WaitQuiesceLock(quiesceDelay)};
 
             int maxQueisceDelay = 1 << maxQuiesceDelayPower;
-            int numQuiesceResults = (1 + maxQuiesceDelayPower) * (1 + maxThreads - minThreads) * totalWorkloadSize;
+            int numQuiesceResults = lockFactories.Length * (1 + maxQuiesceDelayPower) * (1 + maxThreads - minThreads) * totalWorkloadSize;
             var quiesceResults = new TestResult[numQuiesceResults];
             int quiesceResultIdx = 0;
             for (int quiesceDelay = 1; quiesceDelay <= maxQueisceDelay; quiesceDelay <<= 1)
@@ -115,7 +115,7 @@ namespace CASStorm
             var workload = new ArrayFillWorkload(0, 0, 0, maxThreads);
             var entry = workload.Entries[0];
             int numTestResults = maxThreads - minThreads + 1;
-            var results = new int[maxThreads];
+            var results = new int[maxThreads + 1];
             for(int numThreads = minThreads; numThreads <= maxThreads; ++numThreads)
             {
                 var wakeupCountLock = new WakeupCountTestAndTestAndSetLock();
@@ -138,7 +138,7 @@ namespace CASStorm
 
         private static void RunIdleTimeTest(int minThreads, int maxThreads, int numLockAcquires)
         {
-            var workload = new IdleTimeWorkload();
+            var workload = new IdleTimeWorkload(numLockAcquires);
             var locks = new ILock[] { new NaiveAggressiveSpinLock(), new NaiveTestAndTestSpinLock(), new UnscalableTicketLock(), new KernelLock()};
             Func<long, double> ticksToMics = ticks => ticks*Stopwatch.Frequency*1e6;
             var results = new IdleTimeTestResult[locks.Length * (1 + maxThreads - minThreads)];
@@ -147,16 +147,17 @@ namespace CASStorm
             {
                 for (int numThreads = minThreads; numThreads <= maxThreads; ++numThreads)
                 {
+                    Console.Write($"                                    \r{1 + resultIdx}/{results.Length}");
                     GetTestResult(numLockAcquires, theLock, numThreads, workload.Entries[0], "IdleTime", 0);
                     var idleTimes = workload.IdleTimesInTicks;
                     int n = idleTimes.Count;
                     idleTimes.Sort();
-                    results[resultIdx] = new IdleTimeTestResult(theLock.GetType().ToString(), numThreads, ticksToMics(idleTimes[0]), 
-                                                                                              ticksToMics(idleTimes[(int) (n * 0.25)]),
-                                                                                              ticksToMics(idleTimes[(int) (n * 0.5)]),
-                                                                                              ticksToMics(idleTimes[(int) (n * 0.75)]),
-                                                                                              ticksToMics(idleTimes[(int) (n * 0.99)]),
-                                                                                              ticksToMics(idleTimes[n - 1]));
+                    results[resultIdx] = new IdleTimeTestResult(theLock.GetType().Name, numThreads, ticksToMics(idleTimes[0]), 
+                                                                                                    ticksToMics(idleTimes[(int) (n * 0.25)]),
+                                                                                                    ticksToMics(idleTimes[(int) (n * 0.5)]),
+                                                                                                    ticksToMics(idleTimes[(int) (n * 0.75)]),
+                                                                                                    ticksToMics(idleTimes[(int) (n * 0.99)]),
+                                                                                                    ticksToMics(idleTimes[n - 1]));
                     ++resultIdx;
                     workload.Reset();
                 }
@@ -206,7 +207,7 @@ namespace CASStorm
             sw.Start();
             barrier.SignalAndWait();
             sw.Stop();
-            return new TestResult(workloadName, numThreads, naiveLock.GetType().ToString(), numLockAcquires, workloadEntry.ReleaseSize, workloadEntry.AcquireSize, sw.Elapsed.TotalMilliseconds, quiesceDelay);
+            return new TestResult(workloadName, numThreads, naiveLock.GetType().Name, numLockAcquires, workloadEntry.ReleaseSize, workloadEntry.AcquireSize, sw.Elapsed.TotalMilliseconds, quiesceDelay);
         }
 
         private static Action GetThreadFunction(ILock naiveLock, Barrier barrier, int threadIdx, int numAcquires, Action acquireAction, Action releaseAction)

@@ -11,8 +11,9 @@ namespace CASStorm.Workloads
 
         private long _lastReleaseTicks;
 
-        public IdleTimeWorkload()
+        public IdleTimeWorkload(int numAcquires)
         {
+            IdleTimesInTicks = new List<long>(numAcquires);
             var entry = new WorkloadEntry(0, AddIdleTime, 0, _ => _lastReleaseTicks = Stopwatch.GetTimestamp());
             Entries = new[]{entry};            
         }
