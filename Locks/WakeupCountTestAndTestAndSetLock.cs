@@ -21,11 +21,6 @@ namespace CASStorm.Locks
                     }
                 }
             }
-            
-            while (Volatile.Read(ref _held) == 1 || Interlocked.CompareExchange(ref _held, 1, 0) == 1)
-            {
-                continue;
-            }
         }
 
         public void Exit()
