@@ -11,8 +11,13 @@ namespace CASStorm.Workloads
         public ArrayFillWorkload(int minSizePower, int maxSizePower, int maxReleaseIterationsBound, int maxThreads)
         {
             const int SeparationPower = 7; // To avoid false sharing.
-            var shared = new int[1 << maxSizePower];
-            var releaseData = new int[maxThreads << SeparationPower];
+            int maxSize = 1 << maxSizePower;
+            var shared = new int[maxSize];
+            var releaseData = new int[maxThreads << SeparationPower][];
+            for(int i = 0; i < maxThreads; ++i)
+            {
+                releaseData[i] = new int[maxSize];
+            }
             var random = Enumerable.Range(0, maxThreads).Select(idx => new Random(idx)).ToArray();
             var entries = new List<WorkloadEntry>();
             for (int sizePower = minSizePower; sizePower <= maxSizePower; ++sizePower)
@@ -22,6 +27,7 @@ namespace CASStorm.Workloads
                 for (int releaseIterationsBound = 0; releaseIterationsBound <= maxReleaseIterationsBound; ++releaseIterationsBound)
                 {
                     int size = acquireSize;
+                    
                     Action<int> releaseAction = idx => ReleaseAction(idx, releaseData, releaseIterationsBound, SeparationPower, size, random);
                     var entry = new WorkloadEntry(size, acquireAction, releaseIterationsBound, releaseAction);
                     entries.Add(entry);
@@ -30,14 +36,14 @@ namespace CASStorm.Workloads
             Entries = entries;
         }
 
-        private void ReleaseAction(int threadIdx, int[] releaseData, int maxReleaseIterations, int separationPower, int size, Random[] random)
+        private void ReleaseAction(int threadIdx, int[][] releaseData, int maxReleaseIterations, int separationPower, int size, Random[] random)
         {
             var r = random[threadIdx];
             int numReleaseIterations = r.Next(1 + maxReleaseIterations);
             int startIdx = threadIdx << separationPower;
             for (int i = 0; i < numReleaseIterations; ++i)
             {
-                Utils.Fill(releaseData, startIdx, size);
+                Utils.Fill(releaseData[threadIdx], startIdx, size);
             }
             return;
         }
