@@ -17,12 +17,12 @@ namespace CASStorm
             int minThreads = Int32.Parse(args[0]);
             int maxThreads = Int32.Parse(args[1]);
             int numLockAcquires = Int32.Parse(args[2]);
-            int maxReleaseIterationsBound = Int32.Parse(args[3]);
-            int minSizePower = Int32.Parse(args[4]);
-            int maxSizePower = Int32.Parse(args[5]);
-            int minWaitPower = Int32.Parse(args[6]);
-            int maxWaitPower = Int32.Parse(args[7]);
-            int maxQuiesceDelayPower = Int32.Parse(args[8]);
+            int maxReleaseIterationsBound = Int32.Parse(args[3]); // e.g. 10
+            int minSizePower = Int32.Parse(args[4]); // e.g. 4
+            int maxSizePower = Int32.Parse(args[5]); // e.g. 12
+            int minWaitPower = Int32.Parse(args[6]); // e.g. 5
+            int maxWaitPower = Int32.Parse(args[7]); // e.g. 16
+            int maxQuiesceDelayPower = Int32.Parse(args[8]); // e.g. 16
 
             Console.WriteLine("Running scaling test: ");
             RunScalingTest(numLockAcquires, minSizePower, maxSizePower, maxReleaseIterationsBound, minThreads, maxThreads, minWaitPower, maxWaitPower);
@@ -85,7 +85,7 @@ namespace CASStorm
             int numQuiesceResults = lockFactories.Length * (1 + maxQuiesceDelayPower) * (1 + maxThreads - minThreads) * totalWorkloadSize;
             var quiesceResults = new TestResult[numQuiesceResults];
             int quiesceResultIdx = 0;
-            for (int quiesceDelay = 1; quiesceDelay <= maxQueisceDelay; quiesceDelay <<= 1)
+            for (int quiesceDelay = 4; quiesceDelay <= maxQueisceDelay; quiesceDelay <<= 2)
             {
                 foreach (var getLock in lockFactories)
                 {

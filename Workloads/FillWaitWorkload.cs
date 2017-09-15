@@ -16,7 +16,7 @@ namespace CASStorm.Workloads
             {
                 int acquireSize = 1 << sizePower;
                 Action acquireAction = () => Utils.Fill(shared, 0, acquireSize);
-                for (int waitPower = minWaitPower; waitPower <= maxWaitPower; ++waitPower)
+                for (int waitPower = minWaitPower; waitPower <= maxWaitPower; waitPower += 2)
                 {
                     int numNanos = 1 << waitPower;
                     Action<int> releaseAction = _ => Utils.WaitNanos(numNanos);
