@@ -13,7 +13,7 @@ namespace CASStorm.Workloads
         public PureWaitWorkload(int minWaitPower, int maxWaitPower, int minReleaseMultiplier, int maxReleaseMultiplier)
         {
             var entries = new List<WorkloadEntry>();
-            for (int waitPower = minWaitPower; waitPower <= maxWaitPower; ++waitPower)
+            for (int waitPower = minWaitPower; waitPower <= maxWaitPower; waitPower += 2)
             {
                 int numNanos = 1 << waitPower;
                 Action acquireAction = () => Utils.WaitNanos(numNanos);

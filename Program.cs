@@ -75,7 +75,8 @@ namespace CASStorm
         private static void RunQuiescensceTest(int numLockAcquires, int maxQuiesceDelayPower, int minWaitPower, int maxWaitPower, int maxReleaseIterationsBound, int minThreads, int maxThreads)
         {
             var workloads = new IWorkload[] {new ArrayFillWorkload(8, 8, maxReleaseIterationsBound, maxThreads), 
-                                             new PureWaitWorkload(minWaitPower, maxWaitPower, 0, 0) 
+                                             new PureWaitWorkload(minWaitPower, maxWaitPower, 0, 0),
+                                             new FillWaitWorkload(8, 8, minWaitPower, maxWaitPower)
                                             };
             var totalWorkloadSize = TotalWorkloadSize(workloads);
             var lockFactories = new Func<int, int, ILock>[]{(quiesceDelay, numThreads) => new FillQuiesceLock(quiesceDelay, numThreads)
