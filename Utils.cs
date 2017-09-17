@@ -13,7 +13,7 @@ namespace CASStorm
         }
         public static void WaitNanos(double numNanos)
         {
-            double numTicks = numNanos / Stopwatch.Frequency * 1e-9;
+            double numTicks = numNanos * Stopwatch.Frequency * 1e-9;
             var t = Stopwatch.GetTimestamp();
             while (Stopwatch.GetTimestamp() - t < numTicks) ;
         }
