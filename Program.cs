@@ -21,8 +21,8 @@ namespace CASStorm
             int minSizePower = Int32.Parse(args[4]); // e.g. 4
             int maxSizePower = Int32.Parse(args[5]); // e.g. 12
             int minWaitPower = Int32.Parse(args[6]); // e.g. 5
-            int maxWaitPower = Int32.Parse(args[7]); // e.g. 16
-            int maxQuiesceDelayPower = Int32.Parse(args[8]); // e.g. 16
+            int maxWaitPower = Int32.Parse(args[7]); // e.g. 14
+            int maxQuiesceDelayPower = Int32.Parse(args[8]); // e.g. 14
 
             Console.WriteLine("Running TTAS Wake-up count test: ");
             RunWakeUpTest(minThreads, maxThreads, numLockAcquires);
@@ -187,11 +187,11 @@ namespace CASStorm
         {
             using(var writer = File.CreateText(fileName))
             {
-                writer.WriteLine("LockType,NumThreads,NumLockAcquires,NumReleaseIterations,CriticalSectionSize,TotalMilliseconds");
+                writer.WriteLine("LockType,Workload,NumThreads,NumLockAcquires,NumReleaseIterations,CriticalSectionSize,TotalMilliseconds");
                 for(int i = 0; i < results.Length; ++i)
                 {
                     var r = results[i];
-                    writer.WriteLine($"{r.LockType},{r.NumThreads},{r.NumLockAcquires},{r.NumReleaseIterations},{r.CriticalSectionSize},{r.TotalMilliseconds}");
+                    writer.WriteLine($"{r.LockType},{r.WorkloadName},{r.NumThreads},{r.NumLockAcquires},{r.NumReleaseIterations},{r.CriticalSectionSize},{r.TotalMilliseconds}");
                 }
             }
         }
